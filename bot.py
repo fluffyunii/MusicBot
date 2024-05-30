@@ -98,12 +98,14 @@ async def skip(ctx):
         if queue:
             ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
-@bot.command(name='stop', help='Stops the bot and clears the queue')
+@bot.command(name='stop', help='Stops and disconnects the bot from voice channel')
 async def stop(ctx):
-    if ctx.voice_client:
+    if ctx.voice_client and ctx.voice_client.is_connected():
         queue.clear()
         await ctx.voice_client.disconnect()
         await ctx.send("Bot disconnected and queue cleared.")
+    else:
+        await ctx.send("I am not connected to a voice channel.")
 
 @bot.command(name='queue', help='Displays the current queue')
 async def show_queue(ctx):
