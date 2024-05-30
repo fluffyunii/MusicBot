@@ -78,7 +78,7 @@ async def join(ctx):
     await ctx.send(f"Joined {channel}")
 
 @bot.command(name='play', help='Plays a song from YouTube')
-async def play(ctx, url):
+async def play(ctx, *, query):
     global queue
 
     if not ctx.voice_client:
@@ -89,14 +89,30 @@ async def play(ctx, url):
             return
 
     async with ctx.typing():
-        player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
-        if player is None:
-            await ctx.send("Could not download the song. This might be due to an issue with the URL or YouTube itself.")
-            return
+        if 'youtube.com' in query or 'youtu.be' in query:
+            # If the query is a YouTube URL
+            player = await YTDLSource.from_url(query, loop=bot.loop, stream=True)
+            if player is None:
+                await ctx.send("Could not download the song. This might be due to an issue with the URL or YouTube itself.")
+                return
+        else:
+            # If the query is a search query
+            query = f"ytsearch:{query}"
+            player = await YTDLSource.from_url(query, loop=bot.loop, stream=True)
+            if player is None:
+                await ctx.send("No videos found with that title.")
+                return
+
         queue.append(player)
         if not ctx.voice_client.is_playing():
-            ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
-            await ctx.send(f'Now playing: {player.title}')
+            await play_next(ctx)
+
+async def play_next(ctx):
+    if queue:
+        ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
+        await ctx.send(f'Now playing: {ctx.voice_client.source.title}')
+    else:
+        await ctx.send("Queue is empty.")
 
 def check_queue(ctx):
     if queue:
@@ -106,9 +122,7 @@ def check_queue(ctx):
 async def skip(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
         ctx.voice_client.stop()
-        await ctx.send("Song skipped.")
-        if queue:
-            ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
+        await play_next(ctx)
 
 @bot.command(name='stop', help='Stops the bot and clears the queue')
 async def stop(ctx):
