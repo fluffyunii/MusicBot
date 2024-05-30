@@ -59,22 +59,26 @@ async def on_ready():
 async def play(ctx, url):
     global queue
 
+    if not ctx.author.voice:
+        await ctx.send("You are not connected to a voice channel.")
+        return
+
+    channel = ctx.author.voice.channel
     if not ctx.voice_client:
-        if ctx.author.voice:
-            await ctx.author.voice.channel.connect()
-        else:
-            await ctx.send("You are not connected to a voice channel.")
-            return
+        await channel.connect()
 
     async with ctx.typing():
         player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
+        if player is None:
+            await ctx.send("Could not download the song. This might be due to an issue with the URL or YouTube itself.")
+            return
         queue.append(player)
         if not ctx.voice_client.is_playing():
             ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
             await ctx.send(f'Now playing: {player.title}')
 
 def check_queue(ctx):
-    if queue:
+    if ctx.voice_client and ctx.voice_client.is_connected() and queue:
         ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
 @bot.command(name='join', help='Joins the voice channel of the user who typed the command')
@@ -98,7 +102,7 @@ async def skip(ctx):
         if queue:
             ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
-@bot.command(name='stop', help='Stops and disconnects the bot from voice channel')
+@bot.command(name='stop', help='Stops the bot and clears the queue')
 async def stop(ctx):
     if ctx.voice_client and ctx.voice_client.is_connected():
         queue.clear()
