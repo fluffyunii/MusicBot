@@ -81,11 +81,15 @@ async def join(ctx):
 async def play(ctx, *, query):
     global queue
 
+    if not ctx.author.voice:
+        await ctx.send("You are not connected to a voice channel.")
+        return
+
     if not ctx.voice_client:
-        if ctx.author.voice:
+        try:
             await ctx.author.voice.channel.connect()
-        else:
-            await ctx.send("You are not connected to a voice channel.")
+        except discord.ClientException as e:
+            await ctx.send(f"Error connecting to voice channel: {e}")
             return
 
     async with ctx.typing():
@@ -104,7 +108,7 @@ async def play(ctx, *, query):
                 return
 
         queue.append(player)
-        if not ctx.voice_client.is_playing():
+        if not ctx.voice_client.is_playing() and not ctx.voice_client.is_paused():
             await play_next(ctx)
 
 async def play_next(ctx):
