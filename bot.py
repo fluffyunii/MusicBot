@@ -77,6 +77,19 @@ def check_queue(ctx):
     if queue:
         ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
+@bot.command(name='join', help='Joins the voice channel of the user who typed the command')
+async def join(ctx):
+    if not ctx.author.voice:
+        await ctx.send("You are not connected to a voice channel.")
+        return
+
+    channel = ctx.author.voice.channel
+    if ctx.voice_client:
+        await ctx.voice_client.move_to(channel)
+    else:
+        await channel.connect()
+    await ctx.send(f"Joined {channel}")
+
 @bot.command(name='skip', help='Skips the current song')
 async def skip(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
