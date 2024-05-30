@@ -51,7 +51,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 # Define intents
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True  # Enable the members intent to receive member events
 intents.messages = True  # Enable the messages intent to receive message content
 
