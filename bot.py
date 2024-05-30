@@ -37,7 +37,11 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        try:
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        except youtube_dl.DownloadError as e:
+            print(f"Download error: {e}")
+            return None
 
         if 'entries' in data:
             # Take first item from a playlist
@@ -45,6 +49,10 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+
+# Define intents
+intents = discord.Intents.default()
+intents.members = True  # Enable the members intent to receive member events
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -54,32 +62,6 @@ queue = []
 async def on_ready():
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="/help"))
     print(f'Bot connected as {bot.user}')
-
-@bot.command(name='play', help='Plays a song from YouTube')
-async def play(ctx, url):
-    global queue
-
-    if not ctx.author.voice:
-        await ctx.send("You are not connected to a voice channel.")
-        return
-
-    channel = ctx.author.voice.channel
-    if not ctx.voice_client:
-        await channel.connect()
-
-    async with ctx.typing():
-        player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
-        if player is None:
-            await ctx.send("Could not download the song. This might be due to an issue with the URL or YouTube itself.")
-            return
-        queue.append(player)
-        if not ctx.voice_client.is_playing():
-            ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
-            await ctx.send(f'Now playing: {player.title}')
-
-def check_queue(ctx):
-    if ctx.voice_client and ctx.voice_client.is_connected() and queue:
-        ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
 @bot.command(name='join', help='Joins the voice channel of the user who typed the command')
 async def join(ctx):
@@ -93,6 +75,31 @@ async def join(ctx):
     else:
         await channel.connect()
     await ctx.send(f"Joined {channel}")
+
+@bot.command(name='play', help='Plays a song from YouTube')
+async def play(ctx, url):
+    global queue
+
+    if not ctx.voice_client:
+        if ctx.author.voice:
+            await ctx.author.voice.channel.connect()
+        else:
+            await ctx.send("You are not connected to a voice channel.")
+            return
+
+    async with ctx.typing():
+        player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
+        if player is None:
+            await ctx.send("Could not download the song. This might be due to an issue with the URL or YouTube itself.")
+            return
+        queue.append(player)
+        if not ctx.voice_client.is_playing():
+            ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
+            await ctx.send(f'Now playing: {player.title}')
+
+def check_queue(ctx):
+    if queue:
+        ctx.voice_client.play(queue.pop(0), after=lambda e: check_queue(ctx))
 
 @bot.command(name='skip', help='Skips the current song')
 async def skip(ctx):
