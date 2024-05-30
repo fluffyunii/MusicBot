@@ -1,9 +1,8 @@
 import discord
 from discord.ext import commands
-import youtube_dl
+import yt_dlp as youtube_dl
 import asyncio
 import os
-import subprocess
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -53,6 +52,7 @@ queue = []
 
 @bot.event
 async def on_ready():
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="/help"))
     print(f'Bot connected as {bot.user}')
 
 @bot.command(name='play', help='Plays a song from YouTube')
@@ -105,13 +105,8 @@ async def clear(ctx):
     queue.clear()
     await ctx.send("Queue cleared.")
 
-def check_ffmpeg_installed():
-    try:
-        subprocess.run(['ffmpeg', '-version'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        raise RuntimeError("FFmpeg must be installed and available in your PATH.")
-
 if __name__ == "__main__":
-    check_ffmpeg_installed()
-    TOKEN = 'TOKEN'
+    TOKEN = os.getenv('BOTTOKEN')
+    if not TOKEN:
+        raise RuntimeError("The BOTTOKEN environment variable is not set.")
     bot.run(TOKEN)
