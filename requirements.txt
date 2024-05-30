@@ -1,4 +1,4 @@
 discord.py==1.7.3
-yt-dlp==2021.12.27
+yt-dlp==latest
 ffmpeg-python==0.2.0
 PyNaCl==1.4.0
