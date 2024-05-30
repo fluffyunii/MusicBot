@@ -53,6 +53,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 # Define intents
 intents = discord.Intents.default()
 intents.members = True  # Enable the members intent to receive member events
+intents.messages = True  # Enable the messages intent to receive message content
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
